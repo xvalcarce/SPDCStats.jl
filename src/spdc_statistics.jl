@@ -48,7 +48,8 @@
     Bob can measure his photon in B,B⟂
 """
 
-function M(p::NamedTuple,R::Array{Float64,1})
+function M(p::NamedTuple,R::Vector{Float64})
+	""" cf. 10.1103/PhysRevA.91.012107 above Eq. 4 """
 	RA0,RA1,RB0,RB1 = R
 	M11 = √(RA0*RB0)*(p.Tg*cos(p.α)*sin(p.β)*exp(-p.ϕ_β*im)-p.Tg_*sin(p.α)*exp(-p.ϕ_α*im)*cos(p.β))
 	M12 = √(RA0*RB1)*(-p.Tg*cos(p.α)*cos(p.β)-p.Tg_*sin(p.α)*exp(-p.ϕ_α*im)*sin(p.β)*exp(p.ϕ_β*im))
@@ -105,6 +106,7 @@ function p_nc(p::NamedTuple,i::Int64,j::Int64,k::Int64,l::Int64)
 end
 
 function param_xy(p::NamedTuple,x::Int64,y::Int64)
+	""" Extract parameter for choice of settings x,y """
 	p_name = (:Tg,:Tg_,:α,:ϕ_α,:β,:ϕ_β,:N,:pdcA,:pdcB,:ηA,:ηB)
 	alice_settings = [getproperty(p,Symbol(field)) for field in ["α$x","ϕ_α$x"]]
 	bob_settings = [getproperty(p,Symbol(field)) for field in ["β$y","ϕ_β$y"]]
@@ -113,7 +115,7 @@ function param_xy(p::NamedTuple,x::Int64,y::Int64)
 end
 
 function p_ab(p::NamedTuple,x::Int64,y::Int64)
-	""" Return the statistic p(ab|xy) for a,b in [1,2] 
+	""" Return the statistic p(ab|xy) ∀ a,b ∈ [1,2] 
 
 	Probability are binned according to the rule
 	(c, nc)   → 0
@@ -137,21 +139,27 @@ function p_ab(p::NamedTuple,x::Int64,y::Int64)
 	return p_ab
 end
 
+function correlator(p::NamedTuple,x::Int64,y::Int64)
+	""" Return the correlator <A_x B_y> """
+	return correlator(p_ab(p,x,y))
+end
+
 function correlator(p::Matrix{Float64})
 	""" Construct correlator c = p(a=b) - p(a≢b) """
 	corr = p[1,1]+p[2,2]-p[1,2]-p[2,1]
 	return corr
 end
 
-function spdc_correlators(p::Vector{Float64},X::Int64,Y::Int64)
-	p = param(p,X,Y)
+function spdc_correlators(p::NamedTuple,X::Int64,Y::Int64)
+	""" Return all correlators <A_x B_y> for x∈[1,X],y∈[1,Y] """
 	corr = [correlator(p_ab(p,x,y)) for x in 1:X, y in 1:Y]
 	return corr
 end
 
 function param(p::Vector{Float64},X::Int64,Y::Int64;N=1,pdcA=0.,pdcB=0.,ηA=1.0,ηB=1.0)
+	""" Construct a NamedTuple containgin all the information of the SPDC system. """
 	length_param =  2 + 2*X + 2*Y
-	@assert length(p) == length_param "Parameters need to be of size $length_param. Passed size: $(length(p))"
+	@assert length(p) == length_param "Parameters need to be of size $length_param, but got size $(length(p))"
 	param = copy(p)
 	param[1] = tanh(param[1])
 	param[2] = tanh(param[2])
@@ -161,10 +169,3 @@ function param(p::Vector{Float64},X::Int64,Y::Int64;N=1,pdcA=0.,pdcB=0.,ηA=1.0,
 	p = NamedTuple{p_name}([param...,N,pdcA,pdcB,ηA,ηB])
 	return p
 end
-
-function chsh(p::NamedTuple)
-	score = correlator(p_ab(p,1,1))+correlator(p_ab(p,1,2))+correlator(p_ab(p,2,1))-correlator(p_ab(p,2,2))
-	return score
-end
-
-chsh(p::Vector{Float64};N=1,η=1.) =	chsh(param(p,2,2;N=N,ηA=η,ηB=η))
