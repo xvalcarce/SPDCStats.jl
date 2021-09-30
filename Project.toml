@@ -1,0 +1,7 @@
+name = "SPDC"
+uuid = "d646a920-0981-446d-9f41-1dfd3c62e072"
+authors = ["Xavier Valcarce <xvalcarce@protonmail.ch>"]
+version = "0.1.0"
+
+[deps]
+LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
