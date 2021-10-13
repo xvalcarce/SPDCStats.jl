@@ -139,6 +139,39 @@ function p_ab(p::NamedTuple,x::Int64,y::Int64)
 	return p_ab
 end
 
+function p_a_4b(p::NamedTuple,x::Int64,y::Int64)
+	""" Return the satistic p(ab|xy) without binning Bob side.
+	i.e. ∀ a∈[1,2], b∈[1,2,3,4].
+
+	Alice:
+	0 → (c ,nc)
+	1 → (nc nc, nc c, c c)
+
+	Bob:
+	0 → (nc nc)
+	1 → (nc c)
+	2 → (c nc)
+	3 → (c c)
+	"""
+	param = param_xy(p,x,y)
+
+	p_ = Dict(["$(modes...)" => p_nc(param,modes...) 
+			   for modes in [2,3,4,[1,2],[2,3],[2,4],[3,4],[1,2,3],[1,2,4],[2,3,4],[1,2,3,4]]])
+
+	p_00 = p_["234"]-p_["1234"]
+	p_01 = p_["23"]-p_["123"]-p_00
+	p_02 = p_["24"]-p_["124"]-p_00
+	p_03 = p_["2"]-p_["12"]-p_00-p_01-p_02
+
+	p_10 = p_["1234"]-p_["234"]+p_["34"]
+	p_11 = p_["3"]-p_10-p_["23"]+p_["123"]
+	p_12 = p_["4"]-p_10-p_["24"]+p_["124"]
+	p_13 = 1-sum([p_00 p_01 p_02 p_03 p_10 p_11 p_12])
+	
+	return [p_00 p_01 p_02 p_03
+			p_10 p_11 p_12 p_13]
+end
+
 function correlator(p::NamedTuple,x::Int64,y::Int64)
 	""" Return the correlator <A_x B_y> """
 	return correlator(p_ab(p,x,y))
