@@ -57,19 +57,22 @@ function M(p::NamedTuple,R::Vector{Float64})
 	M22 = √(RA1*RB1)*(-p.Tg*sin(p.α)*exp(p.ϕ_α*im)*cos(p.β)+p.Tg_*cos(p.α)*sin(p.β)*exp(p.ϕ_β*im))
 	M = [[M11 M12]
 		 [M21 M22]]
-	F = svd(M)
-	λ1,λ2 = F.S
-	return λ1,λ2
+	return M
 end
 
 function p_nc(p::NamedTuple,i::Int64)
 	""" Probability of no click in mode i. """
 	R = [1.,1.,1.,1.]
 	R[i] = i<=2 ? 1-p.ηA : 1-p.ηB
-	λ1,λ2 = M(p,R)
-	fact = i<=2 ? (1-p.pdcA) : (1-p.pdcB)
-	pr = fact*(((1-p.Tg^2)*(1-p.Tg_^2))/((1-λ1^2)*(1-λ2^2)))^p.N
-	return pr
+	𝕄 = M(p,R)
+	λ1,λ2 = svd(𝕄).S
+	p_dc = i<=2 ? (1-p.pdcA) : (1-p.pdcB)
+	p_ψ = (((1-p.Tg^2)*(1-p.Tg_^2))/((1-λ1^2)*(1-λ2^2)))^p.N
+	c = (p.Tg^2+p.Tg_^2)
+	p_ψ1 = (1/(p.Tg^2+p.Tg_^2))*(1-p.Tg^2)*(1-p.Tg_^2)*sum(𝕄.^2)
+	p_𝕀 = .25*sum([R[1]R[3],R[1]R[4],R[2]R[3],R[2]R[4]])
+	pr = p_dc*(p_ψ + (c*p.v - c)p_ψ1 + c*(1-p.v)*p_𝕀)
+	return real(pr)
 end
 
 function p_nc(p::NamedTuple,i::Int64,j::Int64)
@@ -77,11 +80,16 @@ function p_nc(p::NamedTuple,i::Int64,j::Int64)
 	R = [1.,1.,1.,1.]
 	R[i] = i<=2 ? 1-p.ηA : 1-p.ηB
 	R[j] = j<=2 ? 1-p.ηB : 1-p.ηA
-	λ1,λ2 = M(p,R)
-	fact = i<=2 ? 1-p.pdcA : 1-p.pdcB
-	fact *= j<=2 ? 1-p.pdcA : 1-p.pdcB
-	pr = fact*(((1-p.Tg^2)*(1-p.Tg_^2))/((1-λ1^2)*(1-λ2^2)))^p.N
-	return pr
+	𝕄 = M(p,R)
+	λ1,λ2 = svd(𝕄).S
+	p_dc = i<=2 ? (1-p.pdcA) : (1-p.pdcB)
+	p_dc *= j<=2 ? 1-p.pdcA : 1-p.pdcB
+	p_ψ = (((1-p.Tg^2)*(1-p.Tg_^2))/((1-λ1^2)*(1-λ2^2)))^p.N
+	c = (p.Tg^2+p.Tg_^2)
+	p_ψ1 = (1/(p.Tg^2+p.Tg_^2))*(1-p.Tg^2)*(1-p.Tg_^2)*sum(𝕄.^2)
+	p_𝕀 = .25*sum([R[1]R[3],R[1]R[4],R[2]R[3],R[2]R[4]])
+	pr = p_dc*(p_ψ + (c*p.v - c)p_ψ1 + c*(1-p.v)*p_𝕀)
+	return real(pr)
 end
 
 function p_nc(p::NamedTuple,i::Int64,j::Int64,k::Int64)
@@ -90,27 +98,37 @@ function p_nc(p::NamedTuple,i::Int64,j::Int64,k::Int64)
 	R[i] = 1-p.ηA
 	R[j] = j<=2 ? 1-p.ηA : 1-p.ηB
 	R[k] = 1-p.ηB
-	λ1,λ2 = M(p,R)
-	fact = j<=2 ? (1-p.pdcA)*(1-p.pdcA)*(1-p.pdcB) : (1-p.pdcA)*(1-p.pdcB)*(1-p.pdcB)
-	pr = fact*(((1-p.Tg^2)*(1-p.Tg_^2))/((1-λ1^2)*(1-λ2^2)))^p.N
-	return pr
+	𝕄 = M(p,R)
+	λ1,λ2 = svd(𝕄).S
+	p_dc = j<=2 ? (1-p.pdcA)*(1-p.pdcA)*(1-p.pdcB) : (1-p.pdcA)*(1-p.pdcB)*(1-p.pdcB)
+	p_ψ = (((1-p.Tg^2)*(1-p.Tg_^2))/((1-λ1^2)*(1-λ2^2)))^p.N
+	c = (p.Tg^2+p.Tg_^2)
+	p_ψ1 = (1/(p.Tg^2+p.Tg_^2))*(1-p.Tg^2)*(1-p.Tg_^2)*sum(𝕄.^2)
+	p_𝕀 = .25*sum([R[1]R[3],R[1]R[4],R[2]R[3],R[2]R[4]])
+	pr = p_dc*(p_ψ + (c*p.v - c)p_ψ1 + c*(1-p.v)*p_𝕀)
+	return real(pr)
 end
 
 function p_nc(p::NamedTuple,i::Int64,j::Int64,k::Int64,l::Int64)
 	""" Probability for all detectors to not click """
 	R = [1.0-p.ηA,1.0-p.ηA,1.0-p.ηB,1.0-p.ηB]
-	λ1,λ2 = M(p,R)
-	fact = (1-p.pdcA)*(1-p.pdcA)*(1-p.pdcB)*(1-p.pdcB)
-	pr = fact*(((1-p.Tg^2)*(1-p.Tg_^2))/((1-λ1^2)*(1-λ2^2)))^p.N
-	return pr
+	𝕄 = M(p,R)
+	λ1,λ2 = svd(𝕄).S
+	p_dc = (1-p.pdcA)*(1-p.pdcA)*(1-p.pdcB)*(1-p.pdcB)
+	p_ψ = (((1-p.Tg^2)*(1-p.Tg_^2))/((1-λ1^2)*(1-λ2^2)))^p.N
+	c = (p.Tg^2+p.Tg_^2)
+	p_ψ1 = (1/(p.Tg^2+p.Tg_^2))*(1-p.Tg^2)*(1-p.Tg_^2)*sum(𝕄.^2)
+	p_𝕀 = .25*sum([R[1]R[3],R[1]R[4],R[2]R[3],R[2]R[4]])
+	pr = p_dc*(p_ψ + (c*p.v - c)p_ψ1 + c*(1-p.v)*p_𝕀)
+	return real(pr)
 end
 
 function param_xy(p::NamedTuple,x::Int64,y::Int64)
 	""" Extract parameter for choice of settings x,y """
-	p_name = (:Tg,:Tg_,:α,:ϕ_α,:β,:ϕ_β,:N,:pdcA,:pdcB,:ηA,:ηB)
+	p_name = (:Tg,:Tg_,:α,:ϕ_α,:β,:ϕ_β,:N,:pdcA,:pdcB,:ηA,:ηB,:v)
 	alice_settings = [getproperty(p,Symbol(field)) for field in ["α$x","ϕ_α$x"]]
 	bob_settings = [getproperty(p,Symbol(field)) for field in ["β$y","ϕ_β$y"]]
-	param = NamedTuple{p_name}([p.Tg,p.Tg_,alice_settings...,bob_settings...,p.N,p.pdcA,p.pdcB,p.ηA,p.ηB])
+	param = NamedTuple{p_name}([p.Tg,p.Tg_,alice_settings...,bob_settings...,p.N,p.pdcA,p.pdcB,p.ηA,p.ηB,p.v])
 	return param
 end
 
@@ -189,7 +207,7 @@ function spdc_correlators(p::NamedTuple,X::Int64,Y::Int64)
 	return corr
 end
 
-function param(p::Vector{Float64},X::Int64,Y::Int64;N=1,pdcA=0.,pdcB=0.,ηA=1.0,ηB=1.0)
+function param(p::Vector{Float64},X::Int64,Y::Int64;N=1,pdcA=0.,pdcB=0.,ηA=1.0,ηB=1.0,v=1.0)
 	""" Construct a NamedTuple containgin all the information of the SPDC system. """
 	length_param =  2 + 2*X + 2*Y
 	@assert length(p) == length_param "Parameters need to be of size $length_param, but got size $(length(p))"
@@ -198,7 +216,7 @@ function param(p::Vector{Float64},X::Int64,Y::Int64;N=1,pdcA=0.,pdcB=0.,ηA=1.0,
 	param[2] = tanh(param[2])
 	alice_settings = [Symbol(a*string(x)) for x in 1:X for a in ["α","ϕ_α"]]
 	bob_settings = [Symbol(b*string(y)) for y in 1:Y for b in ["β","ϕ_β"]]
-	p_name = (:Tg,:Tg_,alice_settings...,bob_settings...,:N,:pdcA,:pdcB,:ηA,:ηB)
-	p = NamedTuple{p_name}([param...,N,pdcA,pdcB,ηA,ηB])
+	p_name = (:Tg,:Tg_,alice_settings...,bob_settings...,:N,:pdcA,:pdcB,:ηA,:ηB,:v)
+	p = NamedTuple{p_name}([param...,N,pdcA,pdcB,ηA,ηB,v])
 	return p
 end

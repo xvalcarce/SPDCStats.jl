@@ -63,18 +63,18 @@ function key_rate(S::Float64,H_AB::Float64;noisypp=1e-8)
 	end
 end
 
-function key_rate(p::Vector{Float64};N=1,η=1.0,noisypp=1e-8)
+function key_rate(p::Vector{Float64};N=1,η=1.0,noisypp=1e-8,v=1.0)
 	""" Key rate in the Ho protocol (noisy-preprocessing)
 	
 	p : parameters
 	"""
 	X = 2 # Number of Alice inputs
 	Y = 3 # Number of Bob inputs
-	p = param(p,X,Y,N=N,ηA=η,ηB=η)
+	p = param(p,X,Y,N=N,ηA=η,ηB=η,v=v)
 	S = chsh(p) # CHSH is computed using A_1,A_2,B_1,B_2
 	p_13 = p_a_4b(p,1,3) # We use A_1 B_3 to generate the key
-	if any(p_13 .< 0 )
-		@warn "$p_13)"
+	if any(p_13 .< 0 ) # Can occur due to numeric precision
+		@warn "Found negative probability in $p_13"
 		p_13 = abs.(p_13)
 	end
 	H_AB = H(p_13,noisypp=noisypp)
@@ -83,69 +83,70 @@ function key_rate(p::Vector{Float64};N=1,η=1.0,noisypp=1e-8)
 end
 
 
-function optim_key_rate_noisypp(;N=1,η=1.0,x0=rand(12),noisypp=1e-8)
-	r = optimize(x -> -key_rate(x[1:end-1];N=N,η=η,noisypp=x[end]),
+function optim_key_rate_noisypp(;N=1,η=1.0,x0=rand(12),noisypp=1e-8,v=1.0)
+	r = optimize(x -> -key_rate(x[1:end-1];N=N,η=η,noisypp=x[end],v=v),
 				 [x0...,noisypp], Optim.Options(iterations=3000))
 	return r
 end
 
-function key_rate_noisypp_with_loss(;step=1e-3)
+X0 = [0.8637298055783627, 0.7189379837319168, -0.013784943422925924, 0.24108344648959334, 0.5129371064939435, 0.24013915998799606,1.8147086086681588, 0.24010027842186935, 1.2951511547344126, 0.2402467428421382, -0.013653873756858004, 0.24130485427054246, 1e-15]
+
+
+function key_rate_noisypp_with_loss(;maxstep=1e-2,minstep=1e-5,threshold=1e-6,x0=X0)
 	kr = []
     η = 1.0
-	r = optim_key_rate_noisypp()
-	# Sanity check, since we know the key_rate > 0.25 for η=1.0
-	if -r.minimum > 0.25
-		r = optim_key_rate_noisypp(x0=r.minimizer[1:end-1],noisypp=r.minimizer[end])
+	if x0 == []
+		r = optim_key_rate_noisypp(v=v)
+		# Sanity check, since we know the key_rate > 0.25 for η=1.0
+		if -r.minimum > 0.25
+			for i in 1:20
+				r = optim_key_rate_noisypp(x0=r.minimizer[1:end-1],noisypp=r.minimizer[end],v=v)
+			end
+		else
+			return []
+		end
 	else
-		return []
+		r = optim_key_rate_noisypp(x0=x0[1:end-1],noisypp=x0[end],v=v)
 	end
-	while -r.minimum ≥ 1e-14
+	while -r.minimum ≥ threshold
         push!(kr,[η,-r.minimum,r.minimizer])
 		@info kr[end][1:2]
-		if η <= 0.88
-			step = 1e-4
-		end
-		if η <= 0.84
-			step = 1e-6
-		end
+		step_ = 10^(floor(log10(-r.minimum)))
+		step = step_ > maxstep ? maxstep : step_
+		step = step < minstep ? minstep : step
 		η -= step
-		r = optim_key_rate_noisypp(;η=η,x0=r.minimizer[1:end-1],noisypp=r.minimizer[end])
+		r = optim_key_rate_noisypp(;η=η,x0=r.minimizer[1:end-1],noisypp=r.minimizer[end],v=v)
+		r = optim_key_rate_noisypp(;η=η,x0=r.minimizer[1:end-1],noisypp=r.minimizer[end],v=v)
 	end
 	return kr
 end
 
-function Δrate(;step=1e-3)
+function key_rate_noisypp_with_loss_visibility(;threshold=1e-6,x0=X0,v=1.0)
 	kr = []
     η = 1.0
-	r = optim_key_rate_noisypp()
-	rb = optim_key_rate_noisypp_bin()
-	r_ = -r.minimum ≥ -rb.minimum ? r : rb
-	w = -r.minimum ≥ -rb.minimum ? 0 : 1
-	# Sanity check, since we know the key_rate > 0.25 for η=1.0
-	if -r_.minimum > 0.25
-		w_ = (w+1) % 2
-		while w != w_
-			w_ = w
-			r = optim_key_rate_noisypp(x0=r_.minimizer[1:end-1],noisypp=r_.minimizer[end])
-			rb = optim_key_rate_noisypp_bin(x0=r_.minimizer[1:end-1],noisypp=r_.minimizer[end])
-			w = -r.minimum ≥ -rb.minimum ? 0 : 1
-			r_ = -r.minimum ≥ -rb.minimum ? r : rb
+	if x0 == []
+		r = optim_key_rate_noisypp(v=v)
+		# Sanity check, since we know the key_rate > 0.25 for η=1.0
+		if -r.minimum > 0.25
+			for i in 1:20
+				r = optim_key_rate_noisypp(x0=r.minimizer[1:end-1],noisypp=r.minimizer[end],v=v)
+			end
+		else
+			return []
 		end
 	else
-		return []
+		r = optim_key_rate_noisypp(x0=x0[1:end-1],noisypp=x0[end],v=v)
 	end
-	while -r_.minimum ≥ 1e-10
-        push!(kr,[η,-r.minimum,-rb.minimum,-r.minimum+rb.minimum])
-		@info kr[end]
-        η -= step
-		w_ = (w+1) % 2
-		while w != w_
-			w_ = w
-			println(η)
-			r = optim_key_rate_noisypp(;η=η,x0=r_.minimizer[1:end-1],noisypp=r_.minimizer[end])
-			rb = optim_key_rate_noisypp_bin(;η=η,x0=r_.minimizer[1:end-1],noisypp=r_.minimizer[end])
-			w = -r.minimum ≥ -rb.minimum ? 0 : 1
-			r_ = -r.minimum ≥ -rb.minimum ? r : rb
+	for η in 1.0:-1e-3:0.841
+		if -r.minimum ≥ threshold
+			push!(kr,[η,v,-r.minimum])
+			@info kr[end][1:3]
+			η = round(η,digits=3)
+			r = optim_key_rate_noisypp(;η=η,x0=r.minimizer[1:end-1],noisypp=r.minimizer[end],v=v)
+			r = optim_key_rate_noisypp(;η=η,x0=r.minimizer[1:end-1],noisypp=r.minimizer[end],v=v)
+		else
+			push!(kr,[η,v,NaN])
+			η = round(η,digits=3)
 		end
 	end
 	return kr
