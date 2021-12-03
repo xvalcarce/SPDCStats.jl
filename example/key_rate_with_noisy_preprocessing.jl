@@ -121,7 +121,7 @@ function key_rate_noisypp_with_loss(;maxstep=1e-2,minstep=1e-5,threshold=1e-6,x0
 	return kr
 end
 
-function key_rate_noisypp_with_loss_visibility(;threshold=1e-6,x0=X0,v=1.0)
+function key_rate_noisypp_with_loss_visibility(;step=1e-3,threshold=1e-9,x0=X0,v=1.0)
 	kr = []
     η = 1.0
 	if x0 == []
@@ -131,22 +131,29 @@ function key_rate_noisypp_with_loss_visibility(;threshold=1e-6,x0=X0,v=1.0)
 			for i in 1:20
 				r = optim_key_rate_noisypp(x0=r.minimizer[1:end-1],noisypp=r.minimizer[end],v=v)
 			end
+			push!(kr,[v,η,-r.minimum,r.minimizer[end],r.minimizer[1:end-1]...])
 		else
 			return []
 		end
 	else
 		r = optim_key_rate_noisypp(x0=x0[1:end-1],noisypp=x0[end],v=v)
+		r = optim_key_rate_noisypp(;η=η,x0=r.minimizer[1:end-1],noisypp=r.minimizer[end],v=v)
+		push!(kr,[v,η,-r.minimum,r.minimizer[end],r.minimizer[1:2]...,(r.minimizer[3:end-1] .% 2π)...])
 	end
-	for η in 1.0:-1e-3:0.841
-		if -r.minimum ≥ threshold
-			push!(kr,[η,v,-r.minimum])
-			@info kr[end][1:3]
-			η = round(η,digits=3)
+	@info kr[end][1:3]
+	for η in 1.0-step:-step:0.8
+		η = round(η,digits=3)
+		if kr[end][3] ≥ threshold
 			r = optim_key_rate_noisypp(;η=η,x0=r.minimizer[1:end-1],noisypp=r.minimizer[end],v=v)
 			r = optim_key_rate_noisypp(;η=η,x0=r.minimizer[1:end-1],noisypp=r.minimizer[end],v=v)
+			if -r.minimum ≥ threshold
+				push!(kr,[v,η,-r.minimum,r.minimizer[end],r.minimizer[1:2]...,(r.minimizer[3:end-1] .% 2π)...])
+				@info kr[end][1:3]
+			else
+				push!(kr,[v,η,-10.0,kr[end][4:end]...])
+			end
 		else
-			push!(kr,[η,v,NaN])
-			η = round(η,digits=3)
+			push!(kr,[v,η,-10.0,kr[end][4:end]...])
 		end
 	end
 	return kr
