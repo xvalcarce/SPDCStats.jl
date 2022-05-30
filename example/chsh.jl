@@ -15,7 +15,7 @@ function optimize_chsh(;x0=rand(10),N=1,η=1.0)
 	return r
 end
 
-function chsh_with_loss()
+function chsh_with_loss(;N=1)
 	scores = []
     η = 1.0
     r = optimize_chsh()
@@ -23,7 +23,7 @@ function chsh_with_loss()
         push!(scores,[η,-r.minimum])
 		@info scores[end]
         η -= .01
-        r = optimize_chsh(η=η,x0=r.minimizer)
+        r = optimize_chsh(η=η,x0=r.minimizer,N=N)
 	end
 	return scores
 end
