@@ -1,4 +1,4 @@
-module SPDC
+module SPDCStats
 
 export param,
 	   p_ab,

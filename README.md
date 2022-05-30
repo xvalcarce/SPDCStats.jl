@@ -1,7 +1,7 @@
-## SPDC.jl
+# SPDCStats.jl
 ----------
 
-Julia package to compute statistics arising from a SPDC setup
+Julia package to compute statistics arising from a SPDC source and NPRPDs
 
 ```
                                             Spatial mode number:
@@ -88,28 +88,9 @@ We provide some data
 ## Installation
 ---------------
 
-Install `SPDC.jl` using Julia `Pkg` package as follow
+Install `SPDCStats.jl` using Julia `Pkg` package as follow
 
 ```julia
 > using Pkg
-> Pkg.add(url="https://gitlab.com/plut0n/SPDC.jl")
-```
-
-## Python compatibility
------------------------
-
-To use this package in Python first install pyjulia as follow
-```bash
-~$ python3 -m pip install julia
-```
-
-Then, in python
-```python
->>> import julia
->>> julia.install()
-```
-
-This pacakge can now be imported in Python using
-```python
->>> from julia import SPDC
+> Pkg.add(url="https://github.com/xvalcarce/SPDCStats.jl")
 ```
