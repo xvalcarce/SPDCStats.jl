@@ -1,4 +1,4 @@
-name = "SPDC"
+name = "SPDCStats"
 uuid = "d646a920-0981-446d-9f41-1dfd3c62e072"
 authors = ["Xavier Valcarce <xvalcarce@protonmail.ch>"]
 version = "0.1.0"
