@@ -190,6 +190,52 @@ function p_a_4b(p::NamedTuple,x::Int64,y::Int64)
 			p_10 p_11 p_12 p_13]
 end
 
+function p_4a_4b(p::NamedTuple,x::Int,y::Int)
+	""" Return the raw satistic p(ab|xy).
+	i.e. ∀ a∈[1,2,3,4], b∈[1,2,3,4].
+
+	Alice:
+	0 → (nc nc)
+	1 → (nc c)
+	2 → (c nc)
+	3 → (c c)
+
+	Bob:
+	0 → (nc nc)
+	1 → (nc c)
+	2 → (c nc)
+	3 → (c c)
+	"""
+	param = param_xy(p,x,y)
+
+	p_ = Dict(["$(modes...)" => p_nc(param,modes...) 
+	for modes in [1,2,3,4,[1,2],[1,3],[1,4],[2,3],[2,4],[3,4],[1,2,3],[1,2,4],[1,3,4],[2,3,4],[1,2,3,4]]])
+	
+	ps = zeros(4,4) 
+	
+	ps[1,1] = p_["1234"]
+	ps[1,2] = p_["123"]-p_["1234"]
+	ps[1,3] = p_["124"]-p_["1234"]
+	ps[1,4] = p_["12"]-ps[1,1]-ps[1,2]-ps[1,3]
+
+	ps[2,1] = p_["134"]-p_["1234"]
+	ps[2,2] = p_["13"]-p_["123"]-ps[2,1]
+	ps[2,3] = p_["14"]-p_["124"]-ps[2,1]
+	ps[2,4] = p_["1"]-p_["12"]-ps[2,1]-ps[2,2]-ps[2,3]
+
+	ps[3,1] = p_["234"]-p_["1234"]
+	ps[3,2] = p_["23"]-p_["123"]-ps[3,1]
+	ps[3,3] = p_["24"]-p_["124"]-ps[3,1]
+	ps[3,4] = p_["2"]-p_["12"]-ps[3,1]-ps[3,2]-ps[3,3]
+
+	ps[4,1] = p_["34"]-ps[1,1]-ps[2,1]-ps[3,1]
+	ps[4,2] = p_["3"]-p_["13"]-ps[3,1]-ps[3,2]-ps[4,1]
+	ps[4,3] = p_["4"]-p_["14"]-ps[3,1]-ps[3,3]-ps[4,1]
+	ps[4,4] = 1-sum(ps)
+
+	return ps
+end
+
 function correlator(p::NamedTuple,x::Int64,y::Int64)
 	""" Return the correlator <A_x B_y> """
 	return correlator(p_ab(p,x,y))
