@@ -60,19 +60,24 @@ function M(p::NamedTuple,R::Vector{Float64})
 	return M
 end
 
+p_nc_ψ(p::NamedTuple,λ1::Real,λ2::Real) = (((1-p.Tg^2)*(1-p.Tg_^2))/((1-λ1^2)*(1-λ2^2)))^p.N
+p_nc_ψ1(p::NamedTuple,λ1::Real,λ2::Real) = ((1-p.Tg^2)*(1-p.Tg_^2)*(λ1+λ2))^p.N
+p_nc_𝕀(R::Vector{Float64}) = .25*sum([R[1]R[3],R[1]R[4],R[2]R[3],R[2]R[4]])
+
 function p_nc(p::NamedTuple,i::Int64)
 	""" Probability of no click in mode i. """
 	R = [1.,1.,1.,1.]
 	R[i] = i<=2 ? 1-p.ηA : 1-p.ηB
 	𝕄 = M(p,R)
-	λ1,λ2 = svd(𝕄).S
+	λ1,λ2 = svdvals(𝕄)
 	p_dc = i<=2 ? (1-p.pdcA) : (1-p.pdcB)
-	p_ψ = (((1-p.Tg^2)*(1-p.Tg_^2))/((1-λ1^2)*(1-λ2^2)))^p.N
-	c = (p.Tg^2+p.Tg_^2)
-	p_ψ1 = (1/(p.Tg^2+p.Tg_^2))*(1-p.Tg^2)*(1-p.Tg_^2)*sum(𝕄.^2)
-	p_𝕀 = .25*sum([R[1]R[3],R[1]R[4],R[2]R[3],R[2]R[4]])
-	pr = p_dc*(p_ψ + (c*p.v - c)p_ψ1 + c*(1-p.v)*p_𝕀)
-	return real(pr)
+	p_r = p_nc_ψ(p,λ1,λ2)
+	if p.v != 1.0
+		p_ψ1 = p_nc_ψ1(p,λ1,λ2)
+		p_𝕀 = p_nc_𝕀(R)
+		p_r += (p.v-1)*p_ψ1 + (1-p.v)*p_𝕀
+	end
+	return p_dc*p_r
 end
 
 function p_nc(p::NamedTuple,i::Int64,j::Int64)
@@ -81,15 +86,16 @@ function p_nc(p::NamedTuple,i::Int64,j::Int64)
 	R[i] = i<=2 ? 1-p.ηA : 1-p.ηB
 	R[j] = j<=2 ? 1-p.ηB : 1-p.ηA
 	𝕄 = M(p,R)
-	λ1,λ2 = svd(𝕄).S
+	λ1,λ2 = svdvals(𝕄)
 	p_dc = i<=2 ? (1-p.pdcA) : (1-p.pdcB)
 	p_dc *= j<=2 ? 1-p.pdcA : 1-p.pdcB
-	p_ψ = (((1-p.Tg^2)*(1-p.Tg_^2))/((1-λ1^2)*(1-λ2^2)))^p.N
-	c = (p.Tg^2+p.Tg_^2)
-	p_ψ1 = (1/(p.Tg^2+p.Tg_^2))*(1-p.Tg^2)*(1-p.Tg_^2)*sum(𝕄.^2)
-	p_𝕀 = .25*sum([R[1]R[3],R[1]R[4],R[2]R[3],R[2]R[4]])
-	pr = p_dc*(p_ψ + (c*p.v - c)p_ψ1 + c*(1-p.v)*p_𝕀)
-	return real(pr)
+	p_r = p_nc_ψ(p,λ1,λ2)
+	if p.v != 1.0
+		p_ψ1 = p_nc_ψ1(p,λ1,λ2)
+		p_𝕀 = p_nc_𝕀(R)
+		p_r += (p.v-1)*p_ψ1 + (1-p.v)*p_𝕀
+	end
+	return p_dc*p_r
 end
 
 function p_nc(p::NamedTuple,i::Int64,j::Int64,k::Int64)
@@ -99,28 +105,30 @@ function p_nc(p::NamedTuple,i::Int64,j::Int64,k::Int64)
 	R[j] = j<=2 ? 1-p.ηA : 1-p.ηB
 	R[k] = 1-p.ηB
 	𝕄 = M(p,R)
-	λ1,λ2 = svd(𝕄).S
+	λ1,λ2 = svdvals(𝕄)
 	p_dc = j<=2 ? (1-p.pdcA)*(1-p.pdcA)*(1-p.pdcB) : (1-p.pdcA)*(1-p.pdcB)*(1-p.pdcB)
-	p_ψ = (((1-p.Tg^2)*(1-p.Tg_^2))/((1-λ1^2)*(1-λ2^2)))^p.N
-	c = (p.Tg^2+p.Tg_^2)
-	p_ψ1 = (1/(p.Tg^2+p.Tg_^2))*(1-p.Tg^2)*(1-p.Tg_^2)*sum(𝕄.^2)
-	p_𝕀 = .25*sum([R[1]R[3],R[1]R[4],R[2]R[3],R[2]R[4]])
-	pr = p_dc*(p_ψ + (c*p.v - c)p_ψ1 + c*(1-p.v)*p_𝕀)
-	return real(pr)
+	p_r = p_nc_ψ(p,λ1,λ2)
+	if p.v != 1.0
+		p_ψ1 = p_nc_ψ1(p,λ1,λ2)
+		p_𝕀 = p_nc_𝕀(R)
+		p_r += (p.v-1)*p_ψ1 + (1-p.v)*p_𝕀
+	end
+	return p_dc*p_r
 end
 
 function p_nc(p::NamedTuple,i::Int64,j::Int64,k::Int64,l::Int64)
 	""" Probability for all detectors to not click """
 	R = [1.0-p.ηA,1.0-p.ηA,1.0-p.ηB,1.0-p.ηB]
 	𝕄 = M(p,R)
-	λ1,λ2 = svd(𝕄).S
+	λ1,λ2 = svdvals(𝕄)
 	p_dc = (1-p.pdcA)*(1-p.pdcA)*(1-p.pdcB)*(1-p.pdcB)
-	p_ψ = (((1-p.Tg^2)*(1-p.Tg_^2))/((1-λ1^2)*(1-λ2^2)))^p.N
-	c = (p.Tg^2+p.Tg_^2)
-	p_ψ1 = (1/(p.Tg^2+p.Tg_^2))*(1-p.Tg^2)*(1-p.Tg_^2)*sum(𝕄.^2)
-	p_𝕀 = .25*sum([R[1]R[3],R[1]R[4],R[2]R[3],R[2]R[4]])
-	pr = p_dc*(p_ψ + (c*p.v - c)p_ψ1 + c*(1-p.v)*p_𝕀)
-	return real(pr)
+	p_r = p_nc_ψ(p,λ1,λ2)
+	if p.v != 1.0
+		p_ψ1 = p_nc_ψ1(p,λ1,λ2)
+		p_𝕀 = p_nc_𝕀(R)
+		p_r += (p.v-1)*p_ψ1 + (1-p.v)*p_𝕀
+	end
+	return p_dc*p_r
 end
 
 function param_xy(p::NamedTuple,x::Int64,y::Int64)
@@ -186,7 +194,7 @@ function p_a_4b(p::NamedTuple,x::Int64,y::Int64)
 	ps[2,1] = p_["34"]-ps[1,1]
 	ps[2,2] = p_["3"]-p_["34"]-ps[1,2]
 	ps[2,3] = p_["4"]-p_["34"]-ps[1,3]
-	ps[2,4] = 1-p_["3"]-p_["4"]+p_["1234"]-ps[1,4]
+	ps[2,4] = 1-sum(ps)
 	
 	return ps
 end
