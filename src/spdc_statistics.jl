@@ -61,8 +61,15 @@ function M(p::NamedTuple,R::Vector{Float64})
 end
 
 p_nc_ψ(p::NamedTuple,λ1::Real,λ2::Real) = (((1-p.Tg^2)*(1-p.Tg_^2))/((1-λ1^2)*(1-λ2^2)))^p.N
-p_nc_ψ1(p::NamedTuple,λ1::Real,λ2::Real) = ((1-p.Tg^2)*(1-p.Tg_^2)*(λ1+λ2))^p.N
+p_nc_ψ1(p::NamedTuple,λ1::Real,λ2::Real) = ((1-p.Tg^2)*(1-p.Tg_^2)*(λ1^2+λ2^2))^p.N
 p_nc_𝕀(R::Vector{Float64}) = .25*sum([R[1]R[3],R[1]R[4],R[2]R[3],R[2]R[4]])
+
+function visibility_correction(p::NamedTuple,λ1::Float64,λ2::Float64,R::Vector{Float64})
+	p_I = (p.Tg^2+p.Tg_^2)*p_nc_𝕀(R)
+	p_1 = (λ1^2+λ2^2)*(p.v-1)*(1-p.Tg^2)*(1-p.Tg_^2)
+	mc = p_1 + (1-p.v)*p_I
+	return mc
+end
 
 function p_nc(p::NamedTuple,i::Int64)
 	""" Probability of no click in mode i. """
@@ -73,9 +80,7 @@ function p_nc(p::NamedTuple,i::Int64)
 	p_dc = i<=2 ? (1-p.pdcA) : (1-p.pdcB)
 	p_r = p_nc_ψ(p,λ1,λ2)
 	if p.v != 1.0
-		p_ψ1 = p_nc_ψ1(p,λ1,λ2)
-		p_𝕀 = p_nc_𝕀(R)
-		p_r += (p.v-1)*p_ψ1 + (1-p.v)*p_𝕀
+		p_r += visibility_correction(p,λ1,λ2,R)
 	end
 	return p_dc*p_r
 end
@@ -91,9 +96,7 @@ function p_nc(p::NamedTuple,i::Int64,j::Int64)
 	p_dc *= j<=2 ? 1-p.pdcA : 1-p.pdcB
 	p_r = p_nc_ψ(p,λ1,λ2)
 	if p.v != 1.0
-		p_ψ1 = p_nc_ψ1(p,λ1,λ2)
-		p_𝕀 = p_nc_𝕀(R)
-		p_r += (p.v-1)*p_ψ1 + (1-p.v)*p_𝕀
+		p_r += visibility_correction(p,λ1,λ2,R)
 	end
 	return p_dc*p_r
 end
@@ -109,9 +112,7 @@ function p_nc(p::NamedTuple,i::Int64,j::Int64,k::Int64)
 	p_dc = j<=2 ? (1-p.pdcA)*(1-p.pdcA)*(1-p.pdcB) : (1-p.pdcA)*(1-p.pdcB)*(1-p.pdcB)
 	p_r = p_nc_ψ(p,λ1,λ2)
 	if p.v != 1.0
-		p_ψ1 = p_nc_ψ1(p,λ1,λ2)
-		p_𝕀 = p_nc_𝕀(R)
-		p_r += (p.v-1)*p_ψ1 + (1-p.v)*p_𝕀
+		p_r += visibility_correction(p,λ1,λ2,R)
 	end
 	return p_dc*p_r
 end
@@ -124,9 +125,7 @@ function p_nc(p::NamedTuple,i::Int64,j::Int64,k::Int64,l::Int64)
 	p_dc = (1-p.pdcA)*(1-p.pdcA)*(1-p.pdcB)*(1-p.pdcB)
 	p_r = p_nc_ψ(p,λ1,λ2)
 	if p.v != 1.0
-		p_ψ1 = p_nc_ψ1(p,λ1,λ2)
-		p_𝕀 = p_nc_𝕀(R)
-		p_r += (p.v-1)*p_ψ1 + (1-p.v)*p_𝕀
+		p_r += visibility_correction(p,λ1,λ2,R)
 	end
 	return p_dc*p_r
 end
